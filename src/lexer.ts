@@ -1,4 +1,4 @@
-enum TokenType {
+export enum TokenType {
   LEFT_PAREN,
   RIGHT_PAREN,
   LEFT_BRACE,
@@ -67,7 +67,7 @@ const KEYWORDS: any = {
   while: TokenType.WHILE,
 };
 
-interface Token {
+export interface Token {
   /** The type of the token. */
   tokenType: TokenType;
   /** The lexeme that produced this token. */
