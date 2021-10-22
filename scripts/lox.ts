@@ -2,18 +2,35 @@
 import prompt from "prompt-sync";
 import fs from "fs";
 
-import { evaluate } from "../src";
+import {
+  evaluate,
+  Interpreter,
+  tokenize,
+  parse,
+  RuntimeException,
+  stringify,
+} from "../src";
 // const fs = require('fs')
 
 /** Run lox in an interpreter */
 const runInterpreter = async () => {
   const p = prompt({ sigint: true, eot: true } as any);
+  const interpreter = new Interpreter();
   while (true) {
     const result = p("> ");
     if (result === "quit") {
       break;
     } else {
-      console.log(evaluate(result));
+      try {
+        console.log(stringify(interpreter.evaluate(parse(tokenize(result)))));
+      } catch (e) {
+        // console.log(, e instanceof RuntimeException);
+        if ((e as any).name === "RuntimeException") {
+          console.log("RuntimeException:", (e as any).message);
+        } else {
+          throw e;
+        }
+      }
     }
   }
 };

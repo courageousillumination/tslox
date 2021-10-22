@@ -1,101 +1,15 @@
+import {
+  Expression,
+  buildBinaryExpression,
+  buildUnaryExpression,
+  buildLiteralExpression,
+  buildGroupingExpression,
+} from "./expression";
 import { Token, TokenType } from "./lexer";
-
-enum ExpressionType {
-  Binary,
-  Literal,
-  Unary,
-  Grouping,
-}
-
-interface BinaryExpression {
-  expressionType: ExpressionType.Binary;
-  left: Expression;
-  right: Expression;
-  operator: Token;
-}
-
-interface LiteralExpression {
-  expressionType: ExpressionType.Literal;
-  literal: string | number | boolean | null;
-}
-
-interface UnaryExpression {
-  expressionType: ExpressionType.Unary;
-  operator: Token;
-  value: Expression;
-}
-
-interface GroupingExpression {
-  expressionType: ExpressionType.Grouping;
-  expression: Expression;
-}
-
-type Expression =
-  | BinaryExpression
-  | LiteralExpression
-  | UnaryExpression
-  | GroupingExpression;
-
-const buildBinaryExpression = (
-  left: Expression,
-  operator: Token,
-  right: Expression
-): BinaryExpression => {
-  return {
-    expressionType: ExpressionType.Binary,
-    left,
-    operator,
-    right,
-  };
-};
-
-const buildLiteralExpression = (
-  literal: string | number | boolean | null
-): LiteralExpression => {
-  return {
-    expressionType: ExpressionType.Literal,
-    literal,
-  };
-};
-
-const buildUnaryExpression = (
-  operator: Token,
-  value: Expression
-): UnaryExpression => {
-  return {
-    expressionType: ExpressionType.Unary,
-    operator,
-    value,
-  };
-};
-
-const buildGroupingExpression = (
-  expression: Expression
-): GroupingExpression => {
-  return {
-    expressionType: ExpressionType.Grouping,
-    expression,
-  };
-};
 
 export const parse = (tokens: Token[]) => {
   const parser = new Parser(tokens);
   return parser.parse();
-};
-
-export const prettyPrintExpression = (expr: Expression): string => {
-  switch (expr.expressionType) {
-    case ExpressionType.Literal:
-      return `${expr.literal}`;
-    case ExpressionType.Grouping:
-      return `${prettyPrintExpression(expr.expression)}`;
-    case ExpressionType.Unary:
-      return `(${expr.operator.lexeme} ${prettyPrintExpression(expr.value)})`;
-    case ExpressionType.Binary:
-      return `(${expr.operator.lexeme} ${prettyPrintExpression(
-        expr.left
-      )} ${prettyPrintExpression(expr.right)})`;
-  }
 };
 
 class Parser {
@@ -190,7 +104,6 @@ class Parser {
       return buildGroupingExpression(expr);
     }
 
-    console.log(this.current, this.tokens);
     throw new Error("Something went wrong");
   }
 

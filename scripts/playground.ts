@@ -1,4 +1,4 @@
-import { tokenize, parse, prettyPrintExpression } from "../src";
+import { tokenize, parse, prettyPrintExpression, interpret } from "../src";
 
 const text = `1 + 2 + 3 + 4`;
-console.log(prettyPrintExpression(parse(tokenize(text))));
+console.log(interpret(parse(tokenize(text))));

@@ -86,14 +86,12 @@ export const tokenize = (input: string): Token[] => {
 class Tokenizer {
   private currentPosition = 0;
   private tokenStart = 0;
-  private line = 0;
+  private line = 1;
 
   constructor(private readonly content: string) {}
 
   public scan(): Token[] {
     const tokens: Token[] = [];
-
-    console.log(this.content, this.currentPosition, this.isAtEnd());
 
     while (!this.isAtEnd()) {
       const token = this.scanToken();
