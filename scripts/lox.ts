@@ -22,13 +22,14 @@ const runInterpreter = async () => {
       break;
     } else {
       try {
-        console.log(stringify(interpreter.evaluate(parse(tokenize(result)))));
+        interpreter.interpret(parse(tokenize(result)));
       } catch (e) {
         // console.log(, e instanceof RuntimeException);
         if ((e as any).name === "RuntimeException") {
           console.log("RuntimeException:", (e as any).message);
         } else {
-          throw e;
+          console.log("Unhandled error:");
+          console.log(e);
         }
       }
     }

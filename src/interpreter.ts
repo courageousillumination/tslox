@@ -1,4 +1,5 @@
-import { Token, TokenType } from ".";
+import { Token, TokenType, VariableExpression } from ".";
+import { Environment } from "./environment";
 import {
   BinaryExpression,
   Expression,
@@ -7,7 +8,17 @@ import {
   LiteralExpression,
   UnaryExpression,
   visitExpression,
+  AssignementExpression,
 } from "./expression";
+import {
+  BlockStatement,
+  ExpressionStatement,
+  PrintStatement,
+  Statement,
+  StatementVisitor,
+  VariableDeclarationStatement,
+  visitStatement,
+} from "./statement";
 
 type PrimativeType = string | number | null | boolean;
 
@@ -44,11 +55,6 @@ const checkNumberBinary = (operator: Token, left: any, right: any) => {
   }
 };
 
-export const interpret = (expr: Expression) => {
-  const interpreter = new Interpreter();
-  return interpreter.evaluate(expr);
-};
-
 export const stringify = (value: any): string => {
   if (value === null) return "nil";
 
@@ -63,7 +69,31 @@ export const stringify = (value: any): string => {
   return value.toString();
 };
 
-export class Interpreter implements ExpressionVistor<any> {
+export class Interpreter
+  implements ExpressionVistor<any>, StatementVisitor<void>
+{
+  private environment = new Environment();
+
+  interpret(statements: Statement[]) {
+    for (const statement of statements) {
+      this.execute(statement);
+    }
+  }
+
+  visitPrintStatement(stmt: PrintStatement) {
+    const value = this.evaluate(stmt.exp);
+    console.log(stringify(value));
+  }
+
+  visitExpressionStatement(stmt: ExpressionStatement) {
+    this.evaluate(stmt.exp);
+  }
+
+  visitVariableDeclarationStatement(stmt: VariableDeclarationStatement) {
+    const value = stmt.initializer ? this.evaluate(stmt.initializer) : null;
+    this.environment.define(stmt.name.lexeme, value);
+  }
+
   visitLiteral(exp: LiteralExpression) {
     return exp.literal;
   }
@@ -84,6 +114,36 @@ export class Interpreter implements ExpressionVistor<any> {
       default:
         throw new Error("Unexpected operator");
     }
+  }
+
+  visitVariable(exp: VariableExpression): any {
+    return this.environment.get(exp.name.lexeme);
+  }
+
+  visitAssignement(exp: AssignementExpression): any {
+    const value = this.evaluate(exp.value);
+    this.environment.assign(exp.name.lexeme, value);
+  }
+
+  visitBlockStatement(statement: BlockStatement) {
+    this.executeBlock(statement.statements, new Environment(this.environment));
+  }
+
+  executeBlock(statements: Statement[], environment: Environment) {
+    console.log("starting new block", environment);
+    const previousEnvironment = this.environment;
+    try {
+      this.environment = environment;
+
+      for (const statement of statements) {
+        this.execute(statement);
+      }
+    } finally {
+      this.environment = previousEnvironment;
+    }
+
+    // console.log("finished executing block", this.ev);
+    return null;
   }
 
   visitBinary(exp: BinaryExpression): any {
@@ -133,5 +193,9 @@ export class Interpreter implements ExpressionVistor<any> {
 
   public evaluate(expression: Expression) {
     return visitExpression<any>(expression, this);
+  }
+
+  public execute(statement: Statement) {
+    return visitStatement(statement, this);
   }
 }

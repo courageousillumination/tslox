@@ -5,6 +5,8 @@ export enum ExpressionType {
   Literal,
   Unary,
   Grouping,
+  Variable,
+  Assignement,
 }
 
 export interface BinaryExpression {
@@ -30,11 +32,24 @@ export interface GroupingExpression {
   expression: Expression;
 }
 
+export interface VariableExpression {
+  expressionType: ExpressionType.Variable;
+  name: Token;
+}
+
+export interface AssignementExpression {
+  expressionType: ExpressionType.Assignement;
+  name: Token;
+  value: Expression;
+}
+
 export type Expression =
   | BinaryExpression
   | LiteralExpression
   | UnaryExpression
-  | GroupingExpression;
+  | GroupingExpression
+  | VariableExpression
+  | AssignementExpression;
 
 export const buildBinaryExpression = (
   left: Expression,
@@ -78,6 +93,24 @@ export const buildGroupingExpression = (
   };
 };
 
+export const buildVariableExpression = (name: Token): VariableExpression => {
+  return {
+    expressionType: ExpressionType.Variable,
+    name,
+  };
+};
+
+export const buildAssignementExpression = (
+  name: Token,
+  value: Expression
+): AssignementExpression => {
+  return {
+    expressionType: ExpressionType.Assignement,
+    name,
+    value,
+  };
+};
+
 export const prettyPrintExpression = (expr: Expression): string => {
   switch (expr.expressionType) {
     case ExpressionType.Literal:
@@ -90,6 +123,10 @@ export const prettyPrintExpression = (expr: Expression): string => {
       return `(${expr.operator.lexeme} ${prettyPrintExpression(
         expr.left
       )} ${prettyPrintExpression(expr.right)})`;
+    case ExpressionType.Variable:
+      return expr.name.lexeme;
+    default:
+      throw new Error("Unprintable expression type");
   }
 };
 
@@ -98,6 +135,8 @@ export interface ExpressionVistor<T> {
   visitUnary: (exp: UnaryExpression) => T;
   visitBinary: (exp: BinaryExpression) => T;
   visitGrouping: (exp: GroupingExpression) => T;
+  visitVariable: (exp: VariableExpression) => T;
+  visitAssignement: (exp: AssignementExpression) => T;
 }
 
 export const visitExpression = <T>(
@@ -113,5 +152,9 @@ export const visitExpression = <T>(
       return visitor.visitUnary(expression);
     case ExpressionType.Grouping:
       return visitor.visitGrouping(expression);
+    case ExpressionType.Variable:
+      return visitor.visitVariable(expression);
+    case ExpressionType.Assignement:
+      return visitor.visitAssignement(expression);
   }
 };
