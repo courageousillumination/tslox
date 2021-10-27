@@ -6,6 +6,8 @@ export enum StatementType {
   Expression,
   VariableDeclaration,
   Block,
+  If,
+  While,
 }
 
 export interface PrintStatement {
@@ -27,6 +29,19 @@ export interface VariableDeclarationStatement {
 export interface BlockStatement {
   statementType: StatementType.Block;
   statements: Statement[];
+}
+
+export interface IfStatement {
+  statementType: StatementType.If;
+  condition: Expression;
+  thenBranch: Statement;
+  elseBranch: Statement | null;
+}
+
+export interface WhileStatement {
+  statementType: StatementType.While;
+  condition: Expression;
+  body: Statement;
 }
 
 export const buildPrintStatement = (exp: Expression): PrintStatement => ({
@@ -57,11 +72,33 @@ export const buildBlockStatement = (
   statements,
 });
 
+export const buildIfStatement = (
+  condition: Expression,
+  thenBranch: Statement,
+  elseBranch: Statement | null
+): IfStatement => ({
+  statementType: StatementType.If,
+  condition,
+  thenBranch,
+  elseBranch,
+});
+
+export const buildWhileStatement = (
+  condition: Expression,
+  body: Statement
+): WhileStatement => ({
+  statementType: StatementType.While,
+  condition,
+  body,
+});
+
 export type Statement =
   | PrintStatement
   | ExpressionStatement
   | VariableDeclarationStatement
-  | BlockStatement;
+  | BlockStatement
+  | IfStatement
+  | WhileStatement;
 
 export interface StatementVisitor<T> {
   visitPrintStatement: (statement: PrintStatement) => T;
@@ -70,6 +107,8 @@ export interface StatementVisitor<T> {
     statement: VariableDeclarationStatement
   ) => T;
   visitBlockStatement: (statement: BlockStatement) => T;
+  visitIfStatement: (statement: IfStatement) => T;
+  visitWhileStatement: (statement: WhileStatement) => T;
 }
 
 export const visitStatement = <T>(
@@ -85,5 +124,9 @@ export const visitStatement = <T>(
       return visitor.visitVariableDeclarationStatement(statement);
     case StatementType.Block:
       return visitor.visitBlockStatement(statement);
+    case StatementType.If:
+      return visitor.visitIfStatement(statement);
+    case StatementType.While:
+      return visitor.visitWhileStatement(statement);
   }
 };

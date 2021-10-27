@@ -14,8 +14,10 @@ import { Token, TokenType } from "./lexer";
 import {
   buildBlockStatement,
   buildExpressionStatement,
+  buildIfStatement,
   buildPrintStatement,
   buildVariableDeclarationStatement,
+  buildWhileStatement,
   Statement,
 } from "./statement";
 
@@ -39,10 +41,6 @@ class Parser {
   private declaration(): Statement {
     if (this.match([TokenType.VAR])) {
       return this.varDeclaration();
-    }
-
-    if (this.match([TokenType.LEFT_BRACE])) {
-      return buildBlockStatement(this.block());
     }
     return this.statement();
   }
@@ -70,11 +68,37 @@ class Parser {
   }
 
   private statement(): Statement {
+    if (this.match([TokenType.IF])) {
+      return this.ifStatement();
+    }
     if (this.match([TokenType.PRINT])) {
       return this.printStatement();
     }
+    if (this.match([TokenType.WHILE])) {
+      return this.whileStatement();
+    }
+    if (this.match([TokenType.LEFT_BRACE])) {
+      return buildBlockStatement(this.block());
+    }
 
     return this.expressionStatement();
+  }
+
+  private whileStatement(): Statement {
+    this.consume(TokenType.LEFT_PAREN, "Expected '(' after while.");
+    const condition = this.expression();
+    this.consume(TokenType.RIGHT_PAREN, "Expected ')' after condition.");
+    const body = this.statement();
+    return buildWhileStatement(condition, body);
+  }
+
+  private ifStatement(): Statement {
+    this.consume(TokenType.LEFT_PAREN, "Expected '(' after if.");
+    const condition = this.expression();
+    this.consume(TokenType.RIGHT_PAREN, "Expected ')' after if condition.");
+    const thenBranch = this.statement();
+    const elseBranch = this.match([TokenType.ELSE]) ? this.statement() : null;
+    return buildIfStatement(condition, thenBranch, elseBranch);
   }
 
   private printStatement(): Statement {
@@ -194,6 +218,8 @@ class Parser {
     if (this.match([TokenType.IDENTIFIER])) {
       return buildVariableExpression(this.previous());
     }
+
+    console.log(this.peek());
 
     throw new Error("Something went wrong");
   }

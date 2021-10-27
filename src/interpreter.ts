@@ -13,11 +13,13 @@ import {
 import {
   BlockStatement,
   ExpressionStatement,
+  IfStatement,
   PrintStatement,
   Statement,
   StatementVisitor,
   VariableDeclarationStatement,
   visitStatement,
+  WhileStatement,
 } from "./statement";
 
 type PrimativeType = string | number | null | boolean;
@@ -41,6 +43,7 @@ const isEqual = (left: any, right: any) => {
 
 const checkNumber = (operator: Token, value: any) => {
   if (typeof value !== "number") {
+    console.log(value, typeof value);
     throw new RuntimeException(
       `${operator.lexeme} expected number (line ${operator.line})`
     );
@@ -48,7 +51,7 @@ const checkNumber = (operator: Token, value: any) => {
 };
 
 const checkNumberBinary = (operator: Token, left: any, right: any) => {
-  if (typeof left !== "number" || right !== "number") {
+  if (typeof left !== "number" || typeof right !== "number") {
     throw new RuntimeException(
       `${operator.lexeme} expected number (line ${operator.line})`
     );
@@ -77,6 +80,20 @@ export class Interpreter
   interpret(statements: Statement[]) {
     for (const statement of statements) {
       this.execute(statement);
+    }
+  }
+
+  visitIfStatement(statement: IfStatement) {
+    if (isTruthy(this.evaluate(statement.condition))) {
+      this.execute(statement.thenBranch);
+    } else if (statement.elseBranch !== null) {
+      this.execute(statement.elseBranch);
+    }
+  }
+
+  visitWhileStatement(statement: WhileStatement) {
+    while (isTruthy(this.evaluate(statement.condition))) {
+      this.execute(statement.body);
     }
   }
 
@@ -130,7 +147,6 @@ export class Interpreter
   }
 
   executeBlock(statements: Statement[], environment: Environment) {
-    console.log("starting new block", environment);
     const previousEnvironment = this.environment;
     try {
       this.environment = environment;
@@ -142,7 +158,6 @@ export class Interpreter
       this.environment = previousEnvironment;
     }
 
-    // console.log("finished executing block", this.ev);
     return null;
   }
 
