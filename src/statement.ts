@@ -8,6 +8,15 @@ export enum StatementType {
   Block,
   If,
   While,
+  Func,
+  Ret,
+}
+
+export interface FuncStatement {
+  statementType: StatementType.Func;
+  name: Token;
+  params: Token[];
+  body: Statement[];
 }
 
 export interface PrintStatement {
@@ -42,6 +51,12 @@ export interface WhileStatement {
   statementType: StatementType.While;
   condition: Expression;
   body: Statement;
+}
+
+export interface RetStatement {
+  statementType: StatementType.Ret;
+  keyword: Token;
+  value: Expression | null;
 }
 
 export const buildPrintStatement = (exp: Expression): PrintStatement => ({
@@ -92,13 +107,35 @@ export const buildWhileStatement = (
   body,
 });
 
+export const buildFunStatement = (
+  name: Token,
+  params: Token[],
+  body: Statement[]
+): FuncStatement => ({
+  statementType: StatementType.Func,
+  name,
+  params,
+  body,
+});
+
+export const buildRetStatement = (
+  keyword: Token,
+  value: Expression | null
+): RetStatement => ({
+  statementType: StatementType.Ret,
+  keyword,
+  value,
+});
+
 export type Statement =
   | PrintStatement
   | ExpressionStatement
   | VariableDeclarationStatement
   | BlockStatement
   | IfStatement
-  | WhileStatement;
+  | WhileStatement
+  | FuncStatement
+  | RetStatement;
 
 export interface StatementVisitor<T> {
   visitPrintStatement: (statement: PrintStatement) => T;
@@ -109,6 +146,8 @@ export interface StatementVisitor<T> {
   visitBlockStatement: (statement: BlockStatement) => T;
   visitIfStatement: (statement: IfStatement) => T;
   visitWhileStatement: (statement: WhileStatement) => T;
+  visitFuncStatement: (statement: FuncStatement) => T;
+  visitRetStatement: (statement: RetStatement) => T;
 }
 
 export const visitStatement = <T>(
@@ -128,5 +167,9 @@ export const visitStatement = <T>(
       return visitor.visitIfStatement(statement);
     case StatementType.While:
       return visitor.visitWhileStatement(statement);
+    case StatementType.Func:
+      return visitor.visitFuncStatement(statement);
+    case StatementType.Ret:
+      return visitor.visitRetStatement(statement);
   }
 };

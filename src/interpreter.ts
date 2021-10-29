@@ -1,4 +1,6 @@
-import { Token, TokenType, VariableExpression } from ".";
+import { CallExpression, Token, TokenType, VariableExpression } from ".";
+import { clock } from "./native";
+import { LoxCallable } from "./callable";
 import { Environment } from "./environment";
 import {
   BinaryExpression,
@@ -13,8 +15,10 @@ import {
 import {
   BlockStatement,
   ExpressionStatement,
+  FuncStatement,
   IfStatement,
   PrintStatement,
+  RetStatement,
   Statement,
   StatementVisitor,
   VariableDeclarationStatement,
@@ -28,6 +32,13 @@ export class RuntimeException extends Error {
   constructor(message: string) {
     super(message);
     this.name = "RuntimeException";
+  }
+}
+
+class ReturnError extends Error {
+  constructor(message: string, private readonly value: any) {
+    super(message);
+    this.name = "ReturnError";
   }
 }
 
@@ -72,10 +83,50 @@ export const stringify = (value: any): string => {
   return value.toString();
 };
 
+class LoxFunction implements LoxCallable {
+  constructor(
+    private readonly name: Token,
+    private readonly params: Token[],
+    private readonly body: Statement[],
+    private readonly closure: Environment
+  ) {}
+
+  airity() {
+    return this.params.length;
+  }
+
+  call(interpreter: Interpreter, argumentList: any[]) {
+    const env = new Environment(this.closure);
+    for (let i = 0; i < argumentList.length; i++) {
+      env.define(this.params[i].lexeme, argumentList[i]);
+    }
+
+    try {
+      interpreter.executeBlock(this.body, env);
+    } catch (e: any) {
+      if (e.name === "ReturnError") {
+        return e.value;
+      } else {
+        throw e;
+      }
+    }
+  }
+
+  toString() {
+    return `fn<${this.name.lexeme}>`;
+  }
+}
+
 export class Interpreter
   implements ExpressionVistor<any>, StatementVisitor<void>
 {
-  private environment = new Environment();
+  public readonly globals = new Environment();
+  private environment = this.globals;
+
+  constructor() {
+    // Load up any globals
+    this.globals.define("clock", clock);
+  }
 
   interpret(statements: Statement[]) {
     for (const statement of statements) {
@@ -159,6 +210,37 @@ export class Interpreter
     }
 
     return null;
+  }
+
+  visitCall(exp: CallExpression): any {
+    const callee: LoxCallable = this.evaluate(exp.callee);
+    const args = exp.argumentsList.map((x) => this.evaluate(x));
+    if (!callee.call) {
+      throw new RuntimeException(
+        "Tried to call something that wasn't a function"
+      );
+    }
+
+    if (callee.airity() !== args.length) {
+      throw new RuntimeException("Incorrect number of arguments");
+    }
+    return callee.call(this, args);
+  }
+
+  visitFuncStatement(statement: FuncStatement) {
+    const func = new LoxFunction(
+      statement.name,
+      statement.params,
+      statement.body,
+      this.environment
+    );
+    this.environment.define(statement.name.lexeme, func);
+  }
+
+  visitRetStatement(statement: RetStatement) {
+    const value =
+      statement.value !== null ? this.evaluate(statement.value) : null;
+    throw new ReturnError("", value);
   }
 
   visitBinary(exp: BinaryExpression): any {

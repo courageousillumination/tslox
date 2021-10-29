@@ -39,7 +39,8 @@ const runInterpreter = async () => {
 /** Compile and run a lox file */
 const runCompiled = async (fileName: string) => {
   const content = fs.readFileSync(fileName);
-  console.log(content);
+  const interpreter = new Interpreter();
+  interpreter.interpret(parse(tokenize(content.toString())));
 };
 
 const main = async () => {

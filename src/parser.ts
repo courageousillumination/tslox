@@ -1,5 +1,6 @@
 import {
   buildAssignementExpression,
+  buildCallExpression,
   buildVariableExpression,
   ExpressionType,
 } from ".";
@@ -14,10 +15,13 @@ import { Token, TokenType } from "./lexer";
 import {
   buildBlockStatement,
   buildExpressionStatement,
+  buildFunStatement,
   buildIfStatement,
   buildPrintStatement,
+  buildRetStatement,
   buildVariableDeclarationStatement,
   buildWhileStatement,
+  FuncStatement,
   Statement,
 } from "./statement";
 
@@ -39,10 +43,37 @@ class Parser {
   }
 
   private declaration(): Statement {
+    if (this.match([TokenType.FUN])) {
+      return this.func("function");
+    }
     if (this.match([TokenType.VAR])) {
       return this.varDeclaration();
     }
     return this.statement();
+  }
+
+  private func(kind: string): FuncStatement {
+    const name = this.consume(
+      TokenType.IDENTIFIER,
+      "Expect " + kind + " name."
+    );
+    this.consume(TokenType.LEFT_PAREN, "Expect '(' after " + kind + " name.");
+    const parameters: Token[] = [];
+    if (!this.check(TokenType.RIGHT_PAREN)) {
+      do {
+        if (parameters.length >= 255) {
+          throw new Error("Can't have more than 255 parameters.");
+        }
+
+        parameters.push(
+          this.consume(TokenType.IDENTIFIER, "Expect parameter name.")
+        );
+      } while (this.match([TokenType.COMMA]));
+    }
+    this.consume(TokenType.RIGHT_PAREN, "Expect ')' after parameters.");
+    this.consume(TokenType.LEFT_BRACE, "Expect '{' before " + kind + " body.");
+    const body = this.block();
+    return buildFunStatement(name, parameters, body);
   }
 
   private block(): Statement[] {
@@ -74,6 +105,9 @@ class Parser {
     if (this.match([TokenType.PRINT])) {
       return this.printStatement();
     }
+    if (this.match([TokenType.RETURN])) {
+      return this.returnStatement();
+    }
     if (this.match([TokenType.WHILE])) {
       return this.whileStatement();
     }
@@ -82,6 +116,16 @@ class Parser {
     }
 
     return this.expressionStatement();
+  }
+
+  private returnStatement() {
+    const keyword = this.previous();
+    let value = null;
+    if (!this.check(TokenType.SEMICOLON)) {
+      value = this.expression();
+    }
+    this.consume(TokenType.SEMICOLON, "Expect ';' after return value.");
+    return buildRetStatement(keyword, value);
   }
 
   private whileStatement(): Statement {
@@ -197,7 +241,39 @@ class Parser {
       return buildUnaryExpression(operator, right);
     }
 
-    return this.primary();
+    return this.call();
+  }
+
+  private call(): Expression {
+    let expr = this.primary();
+
+    while (true) {
+      if (this.match([TokenType.LEFT_PAREN])) {
+        expr = this.finishCall(expr);
+      } else {
+        break;
+      }
+    }
+
+    return expr;
+  }
+
+  private finishCall(expr: Expression): Expression {
+    const argumentList: Expression[] = [];
+    if (!this.check(TokenType.RIGHT_PAREN)) {
+      do {
+        if (argumentList.length >= 255) {
+          throw new Error("too many arguments");
+        }
+        argumentList.push(this.expression());
+      } while (this.match([TokenType.COMMA]));
+    }
+
+    const paren = this.consume(
+      TokenType.RIGHT_PAREN,
+      "Expected ')' after arguments."
+    );
+    return buildCallExpression(expr, paren, argumentList);
   }
 
   private primary(): Expression {

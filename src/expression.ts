@@ -7,6 +7,7 @@ export enum ExpressionType {
   Grouping,
   Variable,
   Assignement,
+  Call,
 }
 
 export interface BinaryExpression {
@@ -43,13 +44,21 @@ export interface AssignementExpression {
   value: Expression;
 }
 
+export interface CallExpression {
+  expressionType: ExpressionType.Call;
+  callee: Expression;
+  paren: Token;
+  argumentsList: Expression[];
+}
+
 export type Expression =
   | BinaryExpression
   | LiteralExpression
   | UnaryExpression
   | GroupingExpression
   | VariableExpression
-  | AssignementExpression;
+  | AssignementExpression
+  | CallExpression;
 
 export const buildBinaryExpression = (
   left: Expression,
@@ -111,6 +120,19 @@ export const buildAssignementExpression = (
   };
 };
 
+export const buildCallExpression = (
+  callee: Expression,
+  paren: Token,
+  argumentsList: Expression[]
+): CallExpression => {
+  return {
+    expressionType: ExpressionType.Call,
+    callee,
+    paren,
+    argumentsList,
+  };
+};
+
 export const prettyPrintExpression = (expr: Expression): string => {
   switch (expr.expressionType) {
     case ExpressionType.Literal:
@@ -137,6 +159,7 @@ export interface ExpressionVistor<T> {
   visitGrouping: (exp: GroupingExpression) => T;
   visitVariable: (exp: VariableExpression) => T;
   visitAssignement: (exp: AssignementExpression) => T;
+  visitCall: (exp: CallExpression) => T;
 }
 
 export const visitExpression = <T>(
@@ -156,5 +179,7 @@ export const visitExpression = <T>(
       return visitor.visitVariable(expression);
     case ExpressionType.Assignement:
       return visitor.visitAssignement(expression);
+    case ExpressionType.Call:
+      return visitor.visitCall(expression);
   }
 };
