@@ -1,14 +1,13 @@
-var a = "global";
+class Cake {
+  init(flavor) {
+      this.flavor = flavor;
+  }
 
-fun baz() {
-    fun foo() {
-        print a;
-        return 1;
-    }
-    print foo();
-    var a = "block";
-    foo();
+  taste() {
+    var adjective = "delicious";
+    print "The " + this.flavor + " cake is " + adjective + "!";
+  }
 }
 
-baz();
-print a;
+var cake = Cake("German");
+cake.taste(); // Prints "The German chocolate cake is delicious!".

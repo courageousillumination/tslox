@@ -10,6 +10,7 @@ export enum StatementType {
   While,
   Func,
   Ret,
+  Class,
 }
 
 export interface FuncStatement {
@@ -57,6 +58,12 @@ export interface RetStatement {
   statementType: StatementType.Ret;
   keyword: Token;
   value: Expression | null;
+}
+
+export interface ClassStatement {
+  statementType: StatementType.Class;
+  name: Token;
+  methods: FuncStatement[];
 }
 
 export const buildPrintStatement = (exp: Expression): PrintStatement => ({
@@ -127,6 +134,15 @@ export const buildRetStatement = (
   value,
 });
 
+export const buildClassStatement = (
+  name: Token,
+  methods: FuncStatement[]
+): ClassStatement => ({
+  statementType: StatementType.Class,
+  name,
+  methods,
+});
+
 export type Statement =
   | PrintStatement
   | ExpressionStatement
@@ -135,7 +151,8 @@ export type Statement =
   | IfStatement
   | WhileStatement
   | FuncStatement
-  | RetStatement;
+  | RetStatement
+  | ClassStatement;
 
 export interface StatementVisitor<T> {
   visitPrintStatement: (statement: PrintStatement) => T;
@@ -148,6 +165,7 @@ export interface StatementVisitor<T> {
   visitWhileStatement: (statement: WhileStatement) => T;
   visitFuncStatement: (statement: FuncStatement) => T;
   visitRetStatement: (statement: RetStatement) => T;
+  visitClassStatement: (statement: ClassStatement) => T;
 }
 
 export const visitStatement = <T>(
@@ -171,5 +189,7 @@ export const visitStatement = <T>(
       return visitor.visitFuncStatement(statement);
     case StatementType.Ret:
       return visitor.visitRetStatement(statement);
+    case StatementType.Class:
+      return visitor.visitClassStatement(statement);
   }
 };

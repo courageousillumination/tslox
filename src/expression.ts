@@ -8,6 +8,9 @@ export enum ExpressionType {
   Variable,
   Assignement,
   Call,
+  Get,
+  Set,
+  This,
 }
 
 export interface BinaryExpression {
@@ -51,6 +54,24 @@ export interface CallExpression {
   argumentsList: Expression[];
 }
 
+export interface GetExpression {
+  expressionType: ExpressionType.Get;
+  name: Token;
+  object: Expression;
+}
+
+export interface SetExpression {
+  expressionType: ExpressionType.Set;
+  name: Token;
+  object: Expression;
+  value: Expression;
+}
+
+export interface ThisExpression {
+  expressionType: ExpressionType.This;
+  keyword: Token;
+}
+
 export type Expression =
   | BinaryExpression
   | LiteralExpression
@@ -58,7 +79,10 @@ export type Expression =
   | GroupingExpression
   | VariableExpression
   | AssignementExpression
-  | CallExpression;
+  | CallExpression
+  | GetExpression
+  | SetExpression
+  | ThisExpression;
 
 export const buildBinaryExpression = (
   left: Expression,
@@ -133,6 +157,31 @@ export const buildCallExpression = (
   };
 };
 
+export const buildGetExpression = (
+  name: Token,
+  object: Expression
+): GetExpression => ({
+  expressionType: ExpressionType.Get,
+  name,
+  object,
+});
+
+export const buildSetExpression = (
+  name: Token,
+  object: Expression,
+  value: Expression
+): SetExpression => ({
+  expressionType: ExpressionType.Set,
+  name,
+  object,
+  value,
+});
+
+export const buildThisExpression = (keyword: Token): ThisExpression => ({
+  expressionType: ExpressionType.This,
+  keyword,
+});
+
 export const prettyPrintExpression = (expr: Expression): string => {
   switch (expr.expressionType) {
     case ExpressionType.Literal:
@@ -160,6 +209,9 @@ export interface ExpressionVistor<T> {
   visitVariable: (exp: VariableExpression) => T;
   visitAssignement: (exp: AssignementExpression) => T;
   visitCall: (exp: CallExpression) => T;
+  visitGet: (exp: GetExpression) => T;
+  visitSet: (exp: SetExpression) => T;
+  visitThis: (exp: ThisExpression) => T;
 }
 
 export const visitExpression = <T>(
@@ -181,5 +233,11 @@ export const visitExpression = <T>(
       return visitor.visitAssignement(expression);
     case ExpressionType.Call:
       return visitor.visitCall(expression);
+    case ExpressionType.Get:
+      return visitor.visitGet(expression);
+    case ExpressionType.Set:
+      return visitor.visitSet(expression);
+    case ExpressionType.This:
+      return visitor.visitThis(expression);
   }
 };

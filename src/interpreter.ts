@@ -1,4 +1,11 @@
-import { CallExpression, Token, TokenType, VariableExpression } from ".";
+import {
+  CallExpression,
+  SetExpression,
+  ThisExpression,
+  Token,
+  TokenType,
+  VariableExpression,
+} from ".";
 import { clock } from "./native";
 import { LoxCallable } from "./callable";
 import { Environment } from "./environment";
@@ -11,9 +18,11 @@ import {
   UnaryExpression,
   visitExpression,
   AssignementExpression,
+  GetExpression,
 } from "./expression";
 import {
   BlockStatement,
+  ClassStatement,
   ExpressionStatement,
   FuncStatement,
   IfStatement,
@@ -87,7 +96,8 @@ class LoxFunction implements LoxCallable {
     private readonly name: Token,
     private readonly params: Token[],
     private readonly body: Statement[],
-    private readonly closure: Environment
+    private readonly closure: Environment,
+    private readonly isInitializer: boolean = false
   ) {}
 
   airity() {
@@ -104,15 +114,83 @@ class LoxFunction implements LoxCallable {
       interpreter.executeBlock(this.body, env);
     } catch (e: any) {
       if (e.name === "ReturnError") {
+        if (this.isInitializer) return this.closure.getAt(0, "this");
         return e.value;
       } else {
         throw e;
       }
     }
+    if (this.isInitializer) return this.closure.getAt(0, "this");
+
+    return null;
   }
 
   toString() {
     return `fn<${this.name.lexeme}>`;
+  }
+
+  bindFunc(instance: any) {
+    const environment = new Environment(this.closure);
+    environment.define("this", instance);
+    return new LoxFunction(this.name, this.params, this.body, environment);
+  }
+}
+
+class LoxInstance {
+  private readonly fields: Map<string, any> = new Map();
+
+  constructor(private readonly klass: LoxClass) {}
+
+  get(key: string) {
+    if (this.fields.has(key)) {
+      return this.fields.get(key);
+    }
+
+    const method = this.klass.findMethod(key);
+    if (method != null) return method.bindFunc(this);
+
+    throw new RuntimeException("Undefined property '" + key + "'.");
+  }
+
+  set(key: string, value: any) {
+    this.fields.set(key, value);
+  }
+
+  toString() {
+    return `${this.klass.toString()} instance`;
+  }
+}
+
+class LoxClass implements LoxCallable {
+  constructor(
+    public readonly name: string,
+    private readonly methods: Map<string, LoxFunction>
+  ) {}
+
+  findMethod(key: string) {
+    return this.methods.has(key) ? this.methods.get(key) : null;
+  }
+
+  toString() {
+    return `${this.name}`;
+  }
+
+  call(interpreter: Interpreter, argumentList: any[]) {
+    const instance = new LoxInstance(this);
+    const initializer = this.findMethod("init");
+    if (initializer != null) {
+      initializer.bindFunc(instance).call(interpreter, argumentList);
+    }
+    return instance;
+  }
+
+  airity() {
+    const initializer = this.findMethod("init");
+    if (initializer != null) {
+      return initializer.airity();
+    } else {
+      return 0;
+    }
   }
 }
 
@@ -175,6 +253,10 @@ export class Interpreter
     return this.evaluate(exp.expression);
   }
 
+  visitThis(exp: ThisExpression) {
+    return this.lookupVariable(exp.keyword, exp);
+  }
+
   visitUnary(exp: UnaryExpression): PrimativeType {
     const right = this.evaluate(exp.value);
 
@@ -195,11 +277,50 @@ export class Interpreter
 
   private lookupVariable(name: Token, exp: Expression) {
     const distance = this.locals.get(exp);
+
     if (distance !== undefined) {
       return this.environment.getAt(distance, name.lexeme);
     } else {
       return this.globals.get(name.lexeme);
     }
+  }
+
+  visitClassStatement(statement: ClassStatement) {
+    this.environment.define(statement.name.lexeme, null);
+
+    const methods = new Map<string, LoxFunction>();
+    for (const method of statement.methods) {
+      const func = new LoxFunction(
+        method.name,
+        method.params,
+        method.body,
+        this.environment,
+        method.name.lexeme === "init"
+      );
+      methods.set(method.name.lexeme, func);
+    }
+
+    const klass = new LoxClass(statement.name.lexeme, methods);
+    this.environment.assign(statement.name.lexeme, klass);
+  }
+
+  visitGet(expr: GetExpression) {
+    const obj: any = this.evaluate(expr.object);
+    if (obj.get) {
+      return obj.get(expr.name.lexeme);
+    }
+    throw new RuntimeException("Only instances have properties");
+  }
+
+  visitSet(expr: SetExpression) {
+    const obj: any = this.evaluate(expr.object);
+    if (!obj.set) {
+      throw new RuntimeException("Only instances have fields");
+    }
+
+    const value: any = this.evaluate(expr.value);
+    obj.set(expr.name.lexeme, value);
+    return value;
   }
 
   visitAssignement(exp: AssignementExpression): any {

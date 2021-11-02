@@ -1,6 +1,8 @@
 import {
   buildAssignementExpression,
   buildCallExpression,
+  buildGetExpression,
+  buildSetExpression,
   buildVariableExpression,
   ExpressionType,
 } from ".";
@@ -10,10 +12,12 @@ import {
   buildUnaryExpression,
   buildLiteralExpression,
   buildGroupingExpression,
+  buildThisExpression,
 } from "./expression";
 import { Token, TokenType } from "./lexer";
 import {
   buildBlockStatement,
+  buildClassStatement,
   buildExpressionStatement,
   buildFunStatement,
   buildIfStatement,
@@ -43,6 +47,10 @@ class Parser {
   }
 
   private declaration(): Statement {
+    if (this.match([TokenType.CLASS])) {
+      return this.classDeclaration();
+    }
+
     if (this.match([TokenType.FUN])) {
       return this.func("function");
     }
@@ -50,6 +58,19 @@ class Parser {
       return this.varDeclaration();
     }
     return this.statement();
+  }
+
+  private classDeclaration() {
+    const name = this.consume(TokenType.IDENTIFIER, "Expected class name.");
+    this.consume(TokenType.LEFT_BRACE, "Expected '{' before class body.");
+
+    const methods: FuncStatement[] = [];
+    while (!this.check(TokenType.RIGHT_BRACE) && !this.isAtEnd()) {
+      methods.push(this.func("method"));
+    }
+
+    this.consume(TokenType.RIGHT_BRACE, "Expected '}' after class body.");
+    return buildClassStatement(name, methods);
   }
 
   private func(kind: string): FuncStatement {
@@ -174,6 +195,8 @@ class Parser {
       if (expr.expressionType === ExpressionType.Variable) {
         const name = expr.name;
         return buildAssignementExpression(name, value);
+      } else if (expr.expressionType === ExpressionType.Get) {
+        return buildSetExpression(expr.name, expr.object, value);
       }
     }
     return expr;
@@ -245,11 +268,17 @@ class Parser {
   }
 
   private call(): Expression {
-    let expr = this.primary();
+    let expr: Expression = this.primary();
 
     while (true) {
       if (this.match([TokenType.LEFT_PAREN])) {
         expr = this.finishCall(expr);
+      } else if (this.match([TokenType.DOT])) {
+        const name = this.consume(
+          TokenType.IDENTIFIER,
+          "Expect property name after '.'."
+        );
+        expr = buildGetExpression(name, expr);
       } else {
         break;
       }
@@ -280,6 +309,8 @@ class Parser {
     if (this.match([TokenType.FALSE])) return buildLiteralExpression(false);
     if (this.match([TokenType.TRUE])) return buildLiteralExpression(true);
     if (this.match([TokenType.NIL])) return buildLiteralExpression(null);
+    if (this.match([TokenType.THIS]))
+      return buildThisExpression(this.previous());
 
     if (this.match([TokenType.NUMBER, TokenType.STRING])) {
       return buildLiteralExpression(this.previous().literal as string | number);

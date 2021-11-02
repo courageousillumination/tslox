@@ -4,9 +4,12 @@ import {
   CallExpression,
   Expression,
   ExpressionVistor,
+  GetExpression,
   GroupingExpression,
   Interpreter,
   LiteralExpression,
+  SetExpression,
+  ThisExpression,
   Token,
   UnaryExpression,
   VariableExpression,
@@ -24,18 +27,27 @@ import {
   PrintStatement,
   RetStatement,
   WhileStatement,
+  ClassStatement,
 } from "./statement";
 
-enum CurrentFunctionType {
+enum FunctionType {
   NONE,
   FUNCTION,
+  METHOD,
+  INITIALIZER,
+}
+
+enum ClassType {
+  NONE,
+  CLASS,
 }
 
 export class Resolver
   implements StatementVisitor<void>, ExpressionVistor<void>
 {
   private readonly scopes: Map<string, boolean>[] = [];
-  private currentFunction: CurrentFunctionType = CurrentFunctionType.NONE;
+  private currentFunction: FunctionType = FunctionType.NONE;
+  private currentClass: ClassType = ClassType.NONE;
 
   constructor(private readonly interpreter: Interpreter) {}
 
@@ -71,7 +83,7 @@ export class Resolver
   visitFuncStatement(statement: FuncStatement) {
     this.declare(statement.name);
     this.define(statement.name);
-    return this.resolveFunction(statement, CurrentFunctionType.FUNCTION);
+    return this.resolveFunction(statement, FunctionType.FUNCTION);
   }
 
   visitBinary(expr: BinaryExpression) {
@@ -107,12 +119,55 @@ export class Resolver
   }
 
   visitRetStatement(statement: RetStatement) {
-    if (this.currentFunction === CurrentFunctionType.NONE) {
+    if (this.currentFunction === FunctionType.NONE) {
       throw new Error("Can't return from top-level code.");
+    }
+
+    if (this.currentFunction == FunctionType.INITIALIZER) {
+      throw new Error("Can't return a value from an initializer.");
     }
     if (statement.value) {
       this.resolve(statement.value);
     }
+  }
+
+  visitClassStatement(statement: ClassStatement) {
+    const enclosingClass = this.currentClass;
+    this.currentClass = ClassType.CLASS;
+
+    this.declare(statement.name);
+    this.define(statement.name);
+
+    this.beginScope();
+    this.scopes[0].set("this", true);
+
+    for (const method of statement.methods) {
+      let declaration = FunctionType.METHOD;
+      if (method.name.lexeme === "init") {
+        declaration = FunctionType.INITIALIZER;
+      }
+      this.resolveFunction(method, declaration);
+    }
+
+    this.endScope();
+
+    this.currentClass = enclosingClass;
+  }
+
+  visitThis(expr: ThisExpression) {
+    if (this.currentClass == ClassType.NONE) {
+      throw new Error("Can't use 'this' outside of a class.");
+    }
+    this.resolveLocal(expr, expr.keyword);
+  }
+
+  visitGet(expr: GetExpression) {
+    this.resolve(expr.object);
+  }
+
+  visitSet(expr: SetExpression) {
+    this.resolve(expr.object);
+    this.resolve(expr.value);
   }
 
   visitUnary(expression: UnaryExpression) {
@@ -124,7 +179,7 @@ export class Resolver
     this.resolve(statement.body);
   }
 
-  private resolveFunction(statement: FuncStatement, type: CurrentFunctionType) {
+  private resolveFunction(statement: FuncStatement, type: FunctionType) {
     const enclosingFunction = this.currentFunction;
     this.currentFunction = type;
     this.beginScope();
@@ -179,7 +234,7 @@ export class Resolver
     if (Array.isArray(value)) {
       value.forEach((x) => this.resolve(x));
     }
-    if ((value as Expression).expressionType) {
+    if ((value as Expression).expressionType !== undefined) {
       return visitExpression(value as Expression, this);
     } else {
       return visitStatement(value as Statement, this);
