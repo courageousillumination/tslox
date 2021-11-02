@@ -34,4 +34,21 @@ export class Environment {
 
     throw new RuntimeException("Undefined variable '" + name + "'.");
   }
+
+  public getAt(distance: number, name: string): any {
+    return this.ancestor(distance).get(name);
+  }
+
+  public assignAt(distance: number, name: string, value: any) {
+    this.ancestor(distance).assign(name, value);
+  }
+
+  private ancestor(distance: number) {
+    let environment: Environment = this;
+    for (let i = 0; i < distance; i++) {
+      environment = environment.enclosing as Environment;
+    }
+
+    return environment;
+  }
 }

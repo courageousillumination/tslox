@@ -3,3 +3,4 @@ export * from "./lexer";
 export * from "./parser";
 export * from "./interpreter";
 export * from "./expression";
+export * from "./resolver";

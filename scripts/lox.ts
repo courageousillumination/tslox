@@ -9,6 +9,7 @@ import {
   parse,
   RuntimeException,
   stringify,
+  Resolver,
 } from "../src";
 // const fs = require('fs')
 
@@ -16,13 +17,16 @@ import {
 const runInterpreter = async () => {
   const p = prompt({ sigint: true, eot: true } as any);
   const interpreter = new Interpreter();
+  const resolver = new Resolver(interpreter);
   while (true) {
     const result = p("> ");
     if (result === "quit") {
       break;
     } else {
       try {
-        interpreter.interpret(parse(tokenize(result)));
+        const ast = parse(tokenize(result));
+        resolver.resolve(ast);
+        interpreter.interpret(ast);
       } catch (e) {
         // console.log(, e instanceof RuntimeException);
         if ((e as any).name === "RuntimeException") {
@@ -40,7 +44,10 @@ const runInterpreter = async () => {
 const runCompiled = async (fileName: string) => {
   const content = fs.readFileSync(fileName);
   const interpreter = new Interpreter();
-  interpreter.interpret(parse(tokenize(content.toString())));
+  const resolver = new Resolver(interpreter);
+  const ast = parse(tokenize(content.toString()));
+  resolver.resolve(ast);
+  interpreter.interpret(ast);
 };
 
 const main = async () => {

@@ -1,12 +1,12 @@
-var a = "str";
+var a = "global";
 
 fun baz() {
-    var a = 1;
     fun foo() {
         print a;
+        return 1;
     }
-    foo();
-    a = 3;
+    print foo();
+    var a = "block";
     foo();
 }
 

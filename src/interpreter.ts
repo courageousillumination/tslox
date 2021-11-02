@@ -54,7 +54,6 @@ const isEqual = (left: any, right: any) => {
 
 const checkNumber = (operator: Token, value: any) => {
   if (typeof value !== "number") {
-    console.log(value, typeof value);
     throw new RuntimeException(
       `${operator.lexeme} expected number (line ${operator.line})`
     );
@@ -121,11 +120,17 @@ export class Interpreter
   implements ExpressionVistor<any>, StatementVisitor<void>
 {
   public readonly globals = new Environment();
+  private readonly locals: Map<Expression, number> = new Map();
+
   private environment = this.globals;
 
   constructor() {
     // Load up any globals
     this.globals.define("clock", clock);
+  }
+
+  resolve(expression: Expression, depth: number) {
+    this.locals.set(expression, depth);
   }
 
   interpret(statements: Statement[]) {
@@ -185,12 +190,26 @@ export class Interpreter
   }
 
   visitVariable(exp: VariableExpression): any {
-    return this.environment.get(exp.name.lexeme);
+    return this.lookupVariable(exp.name, exp);
+  }
+
+  private lookupVariable(name: Token, exp: Expression) {
+    const distance = this.locals.get(exp);
+    if (distance !== undefined) {
+      return this.environment.getAt(distance, name.lexeme);
+    } else {
+      return this.globals.get(name.lexeme);
+    }
   }
 
   visitAssignement(exp: AssignementExpression): any {
     const value = this.evaluate(exp.value);
-    this.environment.assign(exp.name.lexeme, value);
+    const distance = this.locals.get(exp);
+    if (distance !== undefined) {
+      this.environment.assignAt(distance, exp.name.lexeme, value);
+    } else {
+      this.globals.assign(exp.name.lexeme, value);
+    }
   }
 
   visitBlockStatement(statement: BlockStatement) {
