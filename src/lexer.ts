@@ -20,6 +20,7 @@ export enum TokenType {
   GREATER_EQUAL,
   LESS,
   LESS_EQUAL,
+  SLASH_DASH,
 
   // Literals.
   IDENTIFIER,
@@ -158,6 +159,8 @@ class Tokenizer {
           // A comment goes until the end of the line.
           while (!this.isAtEnd() && this.peek() != "\n") this.advance();
           return null;
+        } else if (this.match("-")) {
+          return this.createToken(TokenType.SLASH_DASH);
         } else {
           return this.createToken(TokenType.SLASH);
         }

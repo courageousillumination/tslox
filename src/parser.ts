@@ -41,12 +41,20 @@ class Parser {
   public parse(): Statement[] {
     const statements = [];
     while (!this.isAtEnd()) {
-      statements.push(this.declaration());
+      const statement = this.declaration();
+      if (statement !== null) {
+        statements.push(statement);
+      }
     }
     return statements;
   }
 
-  private declaration(): Statement {
+  private declaration(): Statement | null {
+    if (this.match([TokenType.SLASH_DASH])) {
+      this.declaration();
+      return null;
+    }
+
     if (this.match([TokenType.CLASS])) {
       return this.classDeclaration();
     }
@@ -100,7 +108,10 @@ class Parser {
   private block(): Statement[] {
     const statements = [];
     while (!this.check(TokenType.RIGHT_BRACE) && !this.isAtEnd()) {
-      statements.push(this.declaration());
+      const statement = this.declaration();
+      if (statement !== null) {
+        statements.push(statement);
+      }
     }
 
     this.consume(TokenType.RIGHT_BRACE, "Expected '}' at end of block");
