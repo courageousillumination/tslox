@@ -155,11 +155,54 @@ class Parser {
     if (this.match([TokenType.WHILE])) {
       return this.whileStatement();
     }
+    if (this.match([TokenType.FOR])) {
+      return this.forStatement();
+    }
     if (this.match([TokenType.LEFT_BRACE])) {
       return buildBlockStatement(this.block());
     }
 
     return this.expressionStatement();
+  }
+
+  private forStatement() {
+    this.consume(TokenType.LEFT_PAREN, "Expected '(' after 'for'");
+
+    let initializer: any = null;
+    if (this.match([TokenType.SEMICOLON])) {
+      initializer = null;
+    } else if (this.match([TokenType.VAR])) {
+      initializer = this.varDeclaration();
+    } else {
+      initializer = this.expressionStatement();
+    }
+
+    let condition = null;
+    if (!this.check(TokenType.SEMICOLON)) {
+      condition = this.expression();
+    }
+    this.consume(TokenType.SEMICOLON, "Expect ';' after loop condition");
+
+    let increment = null;
+    if (!this.check(TokenType.SEMICOLON)) {
+      increment = this.expression();
+    }
+    this.consume(TokenType.RIGHT_PAREN, "Expect ')' after loop increment");
+    let body = this.statement();
+
+    if (increment !== null) {
+      body = buildBlockStatement([body, buildExpressionStatement(increment)]);
+    }
+
+    if (condition === null) {
+      condition = buildLiteralExpression(true);
+    }
+    body = buildWhileStatement(condition, body);
+
+    if (initializer !== null) {
+      body = buildBlockStatement([initializer, body]);
+    }
+    return body;
   }
 
   private returnStatement() {
