@@ -3,7 +3,7 @@ import { RuntimeException } from ".";
 export class Environment {
   private readonly data = new Map<string, any>();
 
-  constructor(private readonly enclosing?: Environment) {}
+  constructor(public readonly enclosing?: Environment) {}
 
   public define(name: string, value: any) {
     this.data.set(name, value);

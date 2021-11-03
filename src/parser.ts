@@ -3,8 +3,10 @@ import {
   buildCallExpression,
   buildGetExpression,
   buildSetExpression,
+  buildSuperExpression,
   buildVariableExpression,
   ExpressionType,
+  VariableExpression,
 } from ".";
 import {
   Expression,
@@ -70,6 +72,16 @@ class Parser {
 
   private classDeclaration() {
     const name = this.consume(TokenType.IDENTIFIER, "Expected class name.");
+
+    let superClass: undefined | VariableExpression = undefined;
+    if (this.match([TokenType.LESS])) {
+      const superName = this.consume(
+        TokenType.IDENTIFIER,
+        "Expected super class"
+      );
+      superClass = buildVariableExpression(superName);
+    }
+
     this.consume(TokenType.LEFT_BRACE, "Expected '{' before class body.");
 
     const methods: FuncStatement[] = [];
@@ -78,7 +90,7 @@ class Parser {
     }
 
     this.consume(TokenType.RIGHT_BRACE, "Expected '}' after class body.");
-    return buildClassStatement(name, methods);
+    return buildClassStatement(name, methods, superClass);
   }
 
   private func(kind: string): FuncStatement {
@@ -335,6 +347,16 @@ class Parser {
 
     if (this.match([TokenType.IDENTIFIER])) {
       return buildVariableExpression(this.previous());
+    }
+
+    if (this.match([TokenType.SUPER])) {
+      const keyword = this.previous();
+      this.consume(TokenType.DOT, "Expect '.' after 'super'.");
+      const method = this.consume(
+        TokenType.IDENTIFIER,
+        "Expect superclass method name."
+      );
+      return buildSuperExpression(keyword, method);
     }
 
     console.log(this.peek());

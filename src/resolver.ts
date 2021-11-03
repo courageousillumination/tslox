@@ -9,6 +9,7 @@ import {
   Interpreter,
   LiteralExpression,
   SetExpression,
+  SuperExpression,
   ThisExpression,
   Token,
   UnaryExpression,
@@ -40,6 +41,7 @@ enum FunctionType {
 enum ClassType {
   NONE,
   CLASS,
+  SUBCLASS,
 }
 
 export class Resolver
@@ -131,12 +133,34 @@ export class Resolver
     }
   }
 
+  visitSuper(expr: SuperExpression) {
+    if (this.currentClass === ClassType.NONE) {
+      throw new Error("Can't use 'super' outside of a class.");
+    } else if (this.currentClass !== ClassType.SUBCLASS) {
+      throw new Error("Can't use 'super' in a class with no superclass.");
+    }
+    this.resolveLocal(expr, expr.keyword);
+  }
+
   visitClassStatement(statement: ClassStatement) {
     const enclosingClass = this.currentClass;
     this.currentClass = ClassType.CLASS;
 
     this.declare(statement.name);
     this.define(statement.name);
+
+    if (statement.superClass) {
+      if (statement.name.lexeme === statement.superClass.name.lexeme) {
+        throw new Error("A class can't inherit from itself");
+      }
+      this.currentClass = ClassType.SUBCLASS;
+      this.resolve(statement.superClass);
+    }
+
+    if (statement.superClass) {
+      this.beginScope();
+      this.scopes[0].set("super", true);
+    }
 
     this.beginScope();
     this.scopes[0].set("this", true);
@@ -150,6 +174,10 @@ export class Resolver
     }
 
     this.endScope();
+
+    if (statement.superClass) {
+      this.endScope();
+    }
 
     this.currentClass = enclosingClass;
   }

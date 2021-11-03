@@ -19,6 +19,7 @@ import {
   visitExpression,
   AssignementExpression,
   GetExpression,
+  SuperExpression,
 } from "./expression";
 import {
   BlockStatement,
@@ -164,11 +165,17 @@ class LoxInstance {
 class LoxClass implements LoxCallable {
   constructor(
     public readonly name: string,
-    private readonly methods: Map<string, LoxFunction>
+    private readonly methods: Map<string, LoxFunction>,
+    private readonly superClass: LoxClass | null
   ) {}
 
-  findMethod(key: string) {
-    return this.methods.has(key) ? this.methods.get(key) : null;
+  findMethod(key: string): LoxFunction | null {
+    if (this.methods.has(key)) return this.methods.get(key) || null;
+
+    if (this.superClass !== null) {
+      return this.superClass.findMethod(key);
+    }
+    return null;
   }
 
   toString() {
@@ -245,6 +252,18 @@ export class Interpreter
     this.environment.define(stmt.name.lexeme, value);
   }
 
+  visitSuper(expr: SuperExpression) {
+    const distance = this.locals.get(expr) as number;
+    const superclass = this.environment.getAt(distance, "super");
+    const object = this.environment.getAt(distance - 1, "this");
+
+    const method = superclass.findMethod(expr.method.lexeme);
+    if (!method) {
+      throw new RuntimeException("Undefined property on super");
+    }
+    return method.bindFunc(object);
+  }
+
   visitLiteral(exp: LiteralExpression) {
     return exp.literal;
   }
@@ -286,7 +305,17 @@ export class Interpreter
   }
 
   visitClassStatement(statement: ClassStatement) {
+    let superClass = null;
+    if (statement.superClass) {
+      superClass = this.evaluate(statement.superClass);
+    }
+
     this.environment.define(statement.name.lexeme, null);
+
+    if (statement.superClass) {
+      this.environment = new Environment(this.environment);
+      this.environment.define("super", superClass);
+    }
 
     const methods = new Map<string, LoxFunction>();
     for (const method of statement.methods) {
@@ -300,7 +329,12 @@ export class Interpreter
       methods.set(method.name.lexeme, func);
     }
 
-    const klass = new LoxClass(statement.name.lexeme, methods);
+    const klass = new LoxClass(statement.name.lexeme, methods, superClass);
+
+    if (statement.superClass) {
+      this.environment = this.environment.enclosing as Environment;
+    }
+
     this.environment.assign(statement.name.lexeme, klass);
   }
 

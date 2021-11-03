@@ -11,6 +11,13 @@ export enum ExpressionType {
   Get,
   Set,
   This,
+  Super,
+}
+
+export interface SuperExpression {
+  expressionType: ExpressionType.Super;
+  keyword: Token;
+  method: Token;
 }
 
 export interface BinaryExpression {
@@ -82,7 +89,8 @@ export type Expression =
   | CallExpression
   | GetExpression
   | SetExpression
-  | ThisExpression;
+  | ThisExpression
+  | SuperExpression;
 
 export const buildBinaryExpression = (
   left: Expression,
@@ -182,6 +190,15 @@ export const buildThisExpression = (keyword: Token): ThisExpression => ({
   keyword,
 });
 
+export const buildSuperExpression = (
+  keyword: Token,
+  method: Token
+): SuperExpression => ({
+  expressionType: ExpressionType.Super,
+  keyword,
+  method,
+});
+
 export const prettyPrintExpression = (expr: Expression): string => {
   switch (expr.expressionType) {
     case ExpressionType.Literal:
@@ -212,6 +229,7 @@ export interface ExpressionVistor<T> {
   visitGet: (exp: GetExpression) => T;
   visitSet: (exp: SetExpression) => T;
   visitThis: (exp: ThisExpression) => T;
+  visitSuper: (exp: SuperExpression) => T;
 }
 
 export const visitExpression = <T>(
@@ -239,5 +257,7 @@ export const visitExpression = <T>(
       return visitor.visitSet(expression);
     case ExpressionType.This:
       return visitor.visitThis(expression);
+    case ExpressionType.Super:
+      return visitor.visitSuper(expression);
   }
 };

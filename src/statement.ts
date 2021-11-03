@@ -1,4 +1,4 @@
-import { Token } from ".";
+import { Token, VariableExpression } from ".";
 import { Expression } from "./expression";
 
 export enum StatementType {
@@ -64,6 +64,7 @@ export interface ClassStatement {
   statementType: StatementType.Class;
   name: Token;
   methods: FuncStatement[];
+  superClass?: VariableExpression;
 }
 
 export const buildPrintStatement = (exp: Expression): PrintStatement => ({
@@ -136,11 +137,13 @@ export const buildRetStatement = (
 
 export const buildClassStatement = (
   name: Token,
-  methods: FuncStatement[]
+  methods: FuncStatement[],
+  superClass?: VariableExpression
 ): ClassStatement => ({
   statementType: StatementType.Class,
   name,
   methods,
+  superClass,
 });
 
 export type Statement =
